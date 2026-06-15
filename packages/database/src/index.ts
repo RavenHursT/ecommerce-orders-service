@@ -1,4 +1,17 @@
+import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
+import { PrismaClient } from '../generated/prisma/client.js';
+
+export function createPrismaClient(connectionString: string) {
+  const adapter = new PrismaPg({ connectionString });
+  return new PrismaClient({ adapter });
+}
+
+export { PrismaClient };
+export {
+  OrderStatus,
+  PaymentAuthorizationStatus,
+} from '../generated/prisma/client.js';
 
 export async function pingDatabase(connectionString: string): Promise<void> {
   const pool = new pg.Pool({ connectionString });
