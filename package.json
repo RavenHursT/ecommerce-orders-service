@@ -1,0 +1,21 @@
+{
+  "name": "ecommerce-orders-service",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "db:generate": "turbo db:generate"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "eslint": "^9.18.0",
+    "turbo": "^2.5.4",
+    "typescript-eslint": "^8.20.0"
+  },
+  "packageManager": "pnpm@11.1.2",
+  "engines": {
+    "node": ">=22"
+  }
+}
