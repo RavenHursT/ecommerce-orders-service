@@ -5,7 +5,8 @@
     "DATABASE_URL",
     "DIRECT_URL",
     "WAREHOUSES_API_URL",
-    "PAYMENTS_API_URL"
+    "PAYMENTS_API_URL",
+    "INTERNAL_API_KEY"
   ],
   "tasks": {
     "build": {
