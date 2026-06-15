@@ -24,52 +24,41 @@ const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString }),
 });
 
-const WAREHOUSE_EAST_ID = 'wh-east';
-const WAREHOUSE_CENTRAL_ID = 'wh-central';
-const WAREHOUSE_WEST_ID = 'wh-west';
+const WAREHOUSE_EAST_NAME = 'Newark Distribution Center';
+const WAREHOUSE_CENTRAL_NAME = 'Dallas Fulfillment Hub';
+const WAREHOUSE_WEST_NAME = 'Los Angeles Warehouse';
 
-const ORDER_PENDING_ID = 'order-seed-pending';
-const ORDER_COMPLETE_ID = 'order-seed-complete';
-const PAYMENT_COMPLETE_ID = 'pay-auth-seed-complete';
+const OUT_OF_STOCK_SKU = 'EOS-SKU-050';
+const CENTRAL_ONLY_SKU = 'EOS-SKU-049';
 
-const OUT_OF_STOCK_PRODUCT_ID = 'prod-050';
-const CENTRAL_ONLY_PRODUCT_ID = 'prod-049';
+const SEED_ORDER_EMAILS = ['pending@example.com', 'complete@example.com'] as const;
 
 const warehouses = [
   {
-    id: WAREHOUSE_EAST_ID,
-    name: 'Newark Distribution Center',
+    name: WAREHOUSE_EAST_NAME,
     address: '100 Industrial Pkwy, Newark, NJ 07114',
     latitude: 40.7357,
     longitude: -74.1724,
   },
   {
-    id: WAREHOUSE_CENTRAL_ID,
-    name: 'Dallas Fulfillment Hub',
+    name: WAREHOUSE_CENTRAL_NAME,
     address: '500 Logistics Blvd, Dallas, TX 75201',
     latitude: 32.7767,
     longitude: -96.797,
   },
   {
-    id: WAREHOUSE_WEST_ID,
-    name: 'Los Angeles Warehouse',
+    name: WAREHOUSE_WEST_NAME,
     address: '900 Harbor Ave, Los Angeles, CA 90021',
     latitude: 34.0522,
     longitude: -118.2437,
   },
 ] as const;
 
-function toProductId(index: number) {
-  return `prod-${String(index).padStart(3, '0')}`;
-}
-
 function buildProducts() {
   return Array.from({ length: 50 }, (_, index) => {
     const number = index + 1;
-    const id = toProductId(number);
 
     return {
-      id,
       sku: `EOS-SKU-${String(number).padStart(3, '0')}`,
       name: `EOS Product ${number}`,
       unitPrice: (9.99 + number * 2.5).toFixed(2),
@@ -77,46 +66,39 @@ function buildProducts() {
   });
 }
 
-function buildInventory(productIds: string[]) {
-  return productIds.flatMap((productId) => {
-    if (productId === OUT_OF_STOCK_PRODUCT_ID) {
-      return [
-        { warehouseId: WAREHOUSE_EAST_ID, productId, quantity: 0 },
-        { warehouseId: WAREHOUSE_CENTRAL_ID, productId, quantity: 0 },
-        { warehouseId: WAREHOUSE_WEST_ID, productId, quantity: 0 },
-      ];
-    }
+function buildInventory(
+  productSku: string,
+  warehouseIds: { east: string; central: string; west: string },
+) {
+  const { east, central, west } = warehouseIds;
 
-    if (productId === CENTRAL_ONLY_PRODUCT_ID) {
-      return [
-        { warehouseId: WAREHOUSE_EAST_ID, productId, quantity: 0 },
-        { warehouseId: WAREHOUSE_CENTRAL_ID, productId, quantity: 75 },
-        { warehouseId: WAREHOUSE_WEST_ID, productId, quantity: 0 },
-      ];
-    }
-
+  if (productSku === OUT_OF_STOCK_SKU) {
     return [
-      { warehouseId: WAREHOUSE_EAST_ID, productId, quantity: 120 },
-      { warehouseId: WAREHOUSE_CENTRAL_ID, productId, quantity: 60 },
-      { warehouseId: WAREHOUSE_WEST_ID, productId, quantity: 60 },
+      { warehouseId: east, quantity: 0 },
+      { warehouseId: central, quantity: 0 },
+      { warehouseId: west, quantity: 0 },
     ];
-  });
+  }
+
+  if (productSku === CENTRAL_ONLY_SKU) {
+    return [
+      { warehouseId: east, quantity: 0 },
+      { warehouseId: central, quantity: 75 },
+      { warehouseId: west, quantity: 0 },
+    ];
+  }
+
+  return [
+    { warehouseId: east, quantity: 120 },
+    { warehouseId: central, quantity: 60 },
+    { warehouseId: west, quantity: 60 },
+  ];
 }
 
 async function clearSeedData() {
-  await prisma.paymentAuthorization.deleteMany({
-    where: {
-      id: { in: [PAYMENT_COMPLETE_ID] },
-    },
-  });
-  await prisma.orderItem.deleteMany({
-    where: {
-      orderId: { in: [ORDER_PENDING_ID, ORDER_COMPLETE_ID] },
-    },
-  });
   await prisma.order.deleteMany({
     where: {
-      id: { in: [ORDER_PENDING_ID, ORDER_COMPLETE_ID] },
+      customerEmail: { in: [...SEED_ORDER_EMAILS] },
     },
   });
   await prisma.warehouseInventory.deleteMany();
@@ -126,38 +108,52 @@ async function clearSeedData() {
 
 async function seedCatalog() {
   const products = buildProducts();
+  const createdWarehouses = await Promise.all(
+    warehouses.map((warehouse) => prisma.warehouse.create({ data: warehouse })),
+  );
 
-  for (const warehouse of warehouses) {
-    await prisma.warehouse.create({ data: warehouse });
-  }
+  const warehouseIds = {
+    east: createdWarehouses.find(({ name }) => name === WAREHOUSE_EAST_NAME)!.id,
+    central: createdWarehouses.find(({ name }) => name === WAREHOUSE_CENTRAL_NAME)!.id,
+    west: createdWarehouses.find(({ name }) => name === WAREHOUSE_WEST_NAME)!.id,
+  };
 
-  for (const product of products) {
-    await prisma.product.create({ data: product });
-  }
+  const createdProducts = await Promise.all(
+    products.map((product) => prisma.product.create({ data: product })),
+  );
 
-  const inventoryRows = buildInventory(products.map(({ id }) => id));
+  await Promise.all(
+    createdProducts.flatMap((product) =>
+      buildInventory(product.sku, warehouseIds).map(({ warehouseId, quantity }) =>
+        prisma.warehouseInventory.create({
+          data: {
+            warehouseId,
+            productId: product.id,
+            quantity,
+          },
+        }),
+      ),
+    ),
+  );
 
-  for (const row of inventoryRows) {
-    await prisma.warehouseInventory.create({ data: row });
-  }
-
-  return products;
+  return { products: createdProducts, warehouseIds };
 }
 
-async function seedOrders(products: ReturnType<typeof buildProducts>) {
-  const { unitPrice: pendingUnitPrice } = products[0];
-  const { unitPrice: completeUnitPrice } = products[1];
+async function seedOrders({
+  products,
+  warehouseIds,
+}: Awaited<ReturnType<typeof seedCatalog>>) {
+  const [pendingProduct, completeProduct] = products;
   const pendingQuantity = 2;
   const completeQuantity = 1;
-  const pendingTotal = (Number(pendingUnitPrice) * pendingQuantity).toFixed(2);
-  const completeTotal = (Number(completeUnitPrice) * completeQuantity).toFixed(2);
+  const pendingTotal = (Number(pendingProduct.unitPrice) * pendingQuantity).toFixed(2);
+  const completeTotal = (Number(completeProduct.unitPrice) * completeQuantity).toFixed(2);
 
   await prisma.order.create({
     data: {
-      id: ORDER_PENDING_ID,
       status: OrderStatus.PENDING,
       customerName: 'Seed Pending Customer',
-      customerEmail: 'pending@example.com',
+      customerEmail: SEED_ORDER_EMAILS[0],
       shippingLine1: '350 Fifth Avenue',
       shippingCity: 'New York',
       shippingState: 'NY',
@@ -167,43 +163,28 @@ async function seedOrders(products: ReturnType<typeof buildProducts>) {
       items: {
         create: [
           {
-            id: 'order-item-pending-1',
-            productId: products[0].id,
+            productId: pendingProduct.id,
             quantity: pendingQuantity,
-            unitPrice: pendingUnitPrice,
+            unitPrice: pendingProduct.unitPrice,
           },
         ],
       },
     },
   });
 
-  await prisma.paymentAuthorization.create({
-    data: {
-      id: PAYMENT_COMPLETE_ID,
-      orderId: ORDER_COMPLETE_ID,
-      amount: completeTotal,
-      cardLastFour: '4242',
-      description: 'Seed completed order payment',
-      status: PaymentAuthorizationStatus.AUTHORIZED,
-      authorizationCode: 'AUTH-SEED-001',
-    },
-  });
-
   await prisma.order.create({
     data: {
-      id: ORDER_COMPLETE_ID,
       status: OrderStatus.PAYMENT_COMPLETE,
       customerName: 'Seed Complete Customer',
-      customerEmail: 'complete@example.com',
+      customerEmail: SEED_ORDER_EMAILS[1],
       shippingLine1: '233 S Wacker Dr',
       shippingCity: 'Chicago',
       shippingState: 'IL',
       shippingPostalCode: '60606',
       shippingCountry: 'US',
       totalAmount: completeTotal,
-      warehouseId: WAREHOUSE_CENTRAL_ID,
-      warehouseName: 'Dallas Fulfillment Hub',
-      paymentAuthorizationId: PAYMENT_COMPLETE_ID,
+      warehouseId: warehouseIds.central,
+      warehouseName: WAREHOUSE_CENTRAL_NAME,
       distanceKm: '925.000',
       estimatedShipment: {
         carrier: 'EOS Freight',
@@ -213,12 +194,20 @@ async function seedOrders(products: ReturnType<typeof buildProducts>) {
       items: {
         create: [
           {
-            id: 'order-item-complete-1',
-            productId: products[1].id,
+            productId: completeProduct.id,
             quantity: completeQuantity,
-            unitPrice: completeUnitPrice,
+            unitPrice: completeProduct.unitPrice,
           },
         ],
+      },
+      paymentAuthorization: {
+        create: {
+          amount: completeTotal,
+          cardLastFour: '4242',
+          description: 'Seed completed order payment',
+          status: PaymentAuthorizationStatus.AUTHORIZED,
+          authorizationCode: 'AUTH-SEED-001',
+        },
       },
     },
   });
@@ -226,8 +215,8 @@ async function seedOrders(products: ReturnType<typeof buildProducts>) {
 
 async function main() {
   await clearSeedData();
-  const products = await seedCatalog();
-  await seedOrders(products);
+  const catalog = await seedCatalog();
+  await seedOrders(catalog);
 
   const { warehouseCount, productCount, orderCount } = {
     warehouseCount: await prisma.warehouse.count(),

@@ -28,7 +28,7 @@ enum PaymentAuthorizationStatus {
 }
 
 model Order {
-  id                     String      @id @default(cuid())
+  id                     String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   status                 OrderStatus @default(PENDING)
   customerName           String      @map("customer_name")
   customerEmail          String      @map("customer_email")
@@ -39,8 +39,7 @@ model Order {
   shippingPostalCode     String      @map("shipping_postal_code")
   shippingCountry        String      @map("shipping_country")
   totalAmount            Decimal     @map("total_amount") @db.Decimal(10, 2)
-  warehouseId            String?     @map("warehouse_id")
-  paymentAuthorizationId String?     @map("payment_authorization_id")
+  warehouseId            String?     @map("warehouse_id") @db.Uuid
   warehouseName          String?     @map("warehouse_name")
   distanceKm             Decimal?    @map("distance_km") @db.Decimal(10, 3)
   estimatedShipment      Json?       @map("estimated_shipment")
@@ -48,16 +47,18 @@ model Order {
   createdAt              DateTime    @default(now()) @map("created_at")
   updatedAt              DateTime    @updatedAt @map("updated_at")
 
-  items OrderItem[]
+  items                OrderItem[]
+  warehouse            Warehouse?             @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  paymentAuthorization PaymentAuthorization?
 
   @@map("orders")
   @@schema("eos")
 }
 
 model OrderItem {
-  id        String  @id @default(cuid())
-  orderId   String  @map("order_id")
-  productId String  @map("product_id")
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId   String  @map("order_id") @db.Uuid
+  productId String  @map("product_id") @db.Uuid
   quantity  Int
   unitPrice Decimal @map("unit_price") @db.Decimal(10, 2)
 
@@ -69,20 +70,21 @@ model OrderItem {
 }
 
 model Warehouse {
-  id        String @id @default(cuid())
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name      String
   address   String
   latitude  Float
   longitude Float
 
   inventory WarehouseInventory[]
+  orders    Order[]
 
   @@map("warehouses")
   @@schema("eos")
 }
 
 model Product {
-  id        String  @id @default(cuid())
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   sku       String  @unique
   name      String
   unitPrice Decimal @map("unit_price") @db.Decimal(10, 2)
@@ -95,8 +97,8 @@ model Product {
 }
 
 model WarehouseInventory {
-  warehouseId String @map("warehouse_id")
-  productId   String @map("product_id")
+  warehouseId String @map("warehouse_id") @db.Uuid
+  productId   String @map("product_id") @db.Uuid
   quantity    Int
 
   warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
@@ -108,8 +110,8 @@ model WarehouseInventory {
 }
 
 model PaymentAuthorization {
-  id                String                     @id @default(cuid())
-  orderId           String                     @map("order_id")
+  id                String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId           String                     @unique @map("order_id") @db.Uuid
   amount            Decimal                    @db.Decimal(10, 2)
   cardLastFour      String                     @map("card_last_four") @db.VarChar(4)
   description       String?
@@ -117,7 +119,8 @@ model PaymentAuthorization {
   authorizationCode String?                    @map("authorization_code")
   createdAt         DateTime                   @default(now()) @map("created_at")
 
-  @@index([orderId])
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
   @@map("payment_authorizations")
   @@schema("eos")
 }
