@@ -22,3 +22,14 @@ export {
   productResponseSchema,
   type ProductResponse,
 } from './product';
+
+export {
+  authorizePaymentRequestSchema,
+  authorizePaymentAuthorizedResponseSchema,
+  authorizePaymentDeclinedResponseSchema,
+  authorizePaymentResponseSchema,
+  type AuthorizePaymentRequest,
+  type AuthorizePaymentAuthorizedResponse,
+  type AuthorizePaymentDeclinedResponse,
+  type AuthorizePaymentResponse,
+} from './payment';
