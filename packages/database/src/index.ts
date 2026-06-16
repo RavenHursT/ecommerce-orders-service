@@ -1,13 +1,13 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
-import { PrismaClient } from '../generated/prisma/client.js';
+import { PrismaClient, Prisma } from '../generated/prisma/client.js';
 
 export function createPrismaClient(connectionString: string) {
   const adapter = new PrismaPg({ connectionString });
   return new PrismaClient({ adapter });
 }
 
-export { PrismaClient };
+export { PrismaClient, Prisma };
 export {
   OrderStatus,
   PaymentAuthorizationStatus,
