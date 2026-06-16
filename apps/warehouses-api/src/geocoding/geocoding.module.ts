@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { MockGeocodingService } from './mock-geocoding.service';
+import { GoogleGeocodingService } from './google-geocoding.service';
 
 @Module({
-  providers: [MockGeocodingService],
-  exports: [MockGeocodingService],
+  providers: [GoogleGeocodingService],
+  exports: [GoogleGeocodingService],
 })
 export class GeocodingModule {}

@@ -6,7 +6,7 @@ import type {
   FulfillmentLineItem,
 } from '@repo/schemas';
 import { PrismaService } from '../database/prisma.service';
-import { MockGeocodingService } from '../geocoding/mock-geocoding.service';
+import { GoogleGeocodingService } from '../geocoding/google-geocoding.service';
 import { haversineDistanceKm } from '../utils/haversine';
 
 type WarehouseCandidate = {
@@ -21,7 +21,7 @@ type WarehouseCandidate = {
 export class FulfillmentService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly geocoding: MockGeocodingService,
+    private readonly geocoding: GoogleGeocodingService,
   ) {}
 
   async evaluate(
@@ -38,7 +38,7 @@ export class FulfillmentService {
       };
     }
 
-    const { latitude, longitude } = this.geocoding.geocode(request.shippingAddress);
+    const { latitude, longitude } = await this.geocoding.geocode(request.shippingAddress);
     const warehouses = await this.prisma.client.warehouse.findMany({
       where: {
         id: { in: candidateWarehouseIds },
