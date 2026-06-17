@@ -4,6 +4,9 @@ import { PrismaService } from '../database/prisma.service';
 
 const orderWithItemsInclude = {
   items: true,
+  paymentAuthorization: {
+    select: { id: true },
+  },
 } satisfies Prisma.OrderInclude;
 
 export type OrderWithItems = Prisma.OrderGetPayload<{

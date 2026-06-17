@@ -2,4 +2,4 @@ export {
   handleOrderProcessingMessage,
   orderProcessingNodeHandler,
   orderProcessingQueueClient,
-} from '../../api/queues/order-processing-handler.js';
+} from './order-processing-handler.js';

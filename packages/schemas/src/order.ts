@@ -51,6 +51,7 @@ export const orderResponseSchema = z.object({
   distanceKm: z.number().optional(),
   estimatedShipment: z.record(z.unknown()).optional(),
   unfulfillableReason: z.string().optional(),
+  paymentAuthorizationId: z.string().uuid().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });

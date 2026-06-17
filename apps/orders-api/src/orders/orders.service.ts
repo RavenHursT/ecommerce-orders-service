@@ -197,6 +197,7 @@ export class OrdersService {
       createdAt,
       updatedAt,
       items,
+      paymentAuthorization,
     } = order;
 
     return {
@@ -227,6 +228,7 @@ export class OrdersService {
         ? { estimatedShipment: estimatedShipment as Record<string, unknown> }
         : {}),
       ...(unfulfillableReason ? { unfulfillableReason } : {}),
+      ...(paymentAuthorization ? { paymentAuthorizationId: paymentAuthorization.id } : {}),
       createdAt: createdAt.toISOString(),
       updatedAt: updatedAt.toISOString(),
     };
