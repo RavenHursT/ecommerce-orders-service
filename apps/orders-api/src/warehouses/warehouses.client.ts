@@ -5,14 +5,45 @@ import {
 } from '@nestjs/common';
 import {
   evaluateFulfillmentResponseSchema,
+  productCatalogResponseSchema,
   productResponseSchema,
   type EvaluateFulfillmentRequest,
+  type ProductCatalogResponse,
   type EvaluateFulfillmentResponse,
   type ProductResponse,
 } from '@repo/schemas';
 
 @Injectable()
 export class WarehousesClient {
+
+  async listProducts(): Promise<ProductCatalogResponse> {
+    const { WAREHOUSES_API_URL, INTERNAL_API_KEY } = process.env;
+
+    if (!WAREHOUSES_API_URL || !INTERNAL_API_KEY) {
+      throw new BadGatewayException('Warehouses API is not configured');
+    }
+
+    let response: Response;
+
+    try {
+      response = await fetch(`${WAREHOUSES_API_URL}/products`, {
+        headers: {
+          'x-internal-api-key': INTERNAL_API_KEY,
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown fetch error';
+      throw new BadGatewayException(`Failed to reach Warehouses API: ${message}`);
+    }
+
+    if (!response.ok) {
+      throw new BadGatewayException(`Warehouses API returned HTTP ${response.status}`);
+    }
+
+    const body: unknown = await response.json();
+    return productCatalogResponseSchema.parse(body);
+  }
+
   async getProduct(productId: string): Promise<ProductResponse> {
     const { WAREHOUSES_API_URL, INTERNAL_API_KEY } = process.env;
 

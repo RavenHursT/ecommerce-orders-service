@@ -20,7 +20,11 @@ export {
 
 export {
   productResponseSchema,
+  productCatalogItemSchema,
+  productCatalogResponseSchema,
   type ProductResponse,
+  type ProductCatalogItem,
+  type ProductCatalogResponse,
 } from './product';
 
 export {

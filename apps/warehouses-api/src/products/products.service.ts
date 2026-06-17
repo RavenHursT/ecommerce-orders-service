@@ -24,4 +24,32 @@ export class ProductsService {
       unitPrice: Number(unitPrice),
     };
   }
+
+  async listCatalog() {
+    const products = await this.prisma.client.product.findMany({
+      orderBy: { name: 'asc' },
+    });
+
+    const inventoryMaxes = await this.prisma.client.warehouseInventory.groupBy({
+      by: ['productId'],
+      _max: { quantity: true },
+    });
+
+    const quantityByProductId = new Map(
+      inventoryMaxes.map(({ productId, _max }) => [
+        productId,
+        _max.quantity ?? 0,
+      ]),
+    );
+
+    return {
+      data: products.map(({ id, sku, name, unitPrice }) => ({
+        id,
+        sku,
+        name,
+        unitPrice: Number(unitPrice),
+        availableQuantity: quantityByProductId.get(id) ?? 0,
+      })),
+    };
+  }
 }

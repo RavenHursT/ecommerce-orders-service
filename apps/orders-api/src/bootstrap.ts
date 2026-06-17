@@ -17,6 +17,13 @@ export async function createApp(): Promise<ExpressApp> {
   }
 
   const app = await NestFactory.create(AppModule, new ExpressAdapter(server));
+  const { CORS_ALLOWED_ORIGINS } = process.env;
+  const origins = CORS_ALLOWED_ORIGINS?.split(',').map((origin) => origin.trim()).filter(Boolean) ?? [];
+
+  if (origins.length > 0) {
+    app.enableCors({ origin: origins });
+  }
+
   await app.init();
   return server;
 }

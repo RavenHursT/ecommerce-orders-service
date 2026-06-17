@@ -10,22 +10,34 @@
     "GOOGLE_MAPS_API_KEY",
     "VERCEL_OIDC_TOKEN",
     "PORT",
-    "NODE_ENV"
+    "NODE_ENV",
+    "VITE_ORDERS_API_URL",
+    "CORS_ALLOWED_ORIGINS"
   ],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**", "generated/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**",
+        "generated/**"
+      ]
     },
     "dev": {
       "cache": false,
       "persistent": true
     },
     "lint": {
-      "dependsOn": ["^build"]
+      "dependsOn": [
+        "^build"
+      ]
     },
     "typecheck": {
-      "dependsOn": ["^build", "build"]
+      "dependsOn": [
+        "^build",
+        "build"
+      ]
     },
     "db:generate": {
       "cache": false,
@@ -33,11 +45,15 @@
     },
     "db:migrate": {
       "cache": false,
-      "dependsOn": ["db:generate"]
+      "dependsOn": [
+        "db:generate"
+      ]
     },
     "db:seed": {
       "cache": false,
-      "dependsOn": ["db:migrate"]
+      "dependsOn": [
+        "db:migrate"
+      ]
     }
   }
 }
