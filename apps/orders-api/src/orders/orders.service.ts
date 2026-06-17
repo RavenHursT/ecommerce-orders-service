@@ -14,6 +14,7 @@ import type {
   UpdateOrderRequest,
 } from '@repo/schemas';
 import { WarehousesClient } from '../warehouses/warehouses.client';
+import { OrderProcessingPublisher } from '../queues/order-processing.publisher';
 import { OrdersRepository, type OrderWithItems } from './orders.repository';
 
 @Injectable()
@@ -21,6 +22,7 @@ export class OrdersService {
   constructor(
     private readonly ordersRepository: OrdersRepository,
     private readonly warehousesClient: WarehousesClient,
+    private readonly orderProcessingPublisher: OrderProcessingPublisher,
   ) {}
 
   async list(query: ListOrdersQuery): Promise<PaginatedOrdersResponse> {
@@ -53,7 +55,7 @@ export class OrdersService {
   }
 
   async create(request: CreateOrderRequest): Promise<OrderResponse> {
-    const { customer, shippingAddress, items } = request;
+    const { customer, shippingAddress, items, payment } = request;
     const uniqueProductIds = new Set(items.map(({ productId }) => productId));
 
     if (uniqueProductIds.size !== items.length) {
@@ -105,6 +107,8 @@ export class OrdersService {
         })),
       },
     });
+
+    await this.orderProcessingPublisher.publish(order.id, payment);
 
     return this.toOrderResponse(order);
   }
